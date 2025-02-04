@@ -2,6 +2,7 @@
 Projet permettant de prédire le taux de survavibilité des passagers
 du Titanic
 """
+import os
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,6 +16,16 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.metrics import confusion_matrix
+
+
+# Getting API token
+
+jeton_api = os.environ.get("jeton", "")
+
+if jeton_api.startswith("$"):
+    print("API token has been configured properly")
+else:
+    print("API token has not been configured")
 
 # Defining args for project
 
@@ -95,14 +106,15 @@ preprocessor = ColumnTransformer(
     ]
 )
 
-max_depth = None
-max_features = "sqrt"
+MAX_DEPTH = None
+MAX_FEATURES = "sqrt"
+N_TREES = args.n_trees
 
 pipe = Pipeline(
     [
         ("preprocessor", preprocessor),
-        ("classifier", RandomForestClassifier(n_estimators=args.n_trees,
-        max_depth=max_depth, max_features=max_features)),
+        ("classifier", RandomForestClassifier(n_estimators=N_TREES,
+        max_depth=MAX_DEPTH, max_features=MAX_FEATURES)),
     ]
 )
 
