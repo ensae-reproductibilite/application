@@ -19,8 +19,9 @@ from sklearn.metrics import confusion_matrix
 
 
 # Getting API token
+load_dotenv()
 
-jeton_api = os.environ.get("jeton", "")
+jeton_api = os.environ["JETON_API"]
 
 if jeton_api.startswith("$"):
     print("API token has been configured properly")
@@ -132,8 +133,6 @@ X = TrainingData.drop("Survived", axis="columns")
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
 pd.concat([X_train, y_train]).to_csv("train.csv")
 pd.concat([X_test, y_test]).to_csv("test.csv")
-
-jetonapi = "$trotskitueleski1917"
 
 
 # Random Forest
