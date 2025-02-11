@@ -106,6 +106,9 @@ preprocessor = ColumnTransformer(
     ]
 )
 
+
+"Définition du modèles et des hyperparamètres"
+
 MAX_DEPTH = None
 MAX_FEATURES = "sqrt"
 N_TREES = args.n_trees
