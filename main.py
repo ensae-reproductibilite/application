@@ -66,3 +66,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#pour tester, je vais simplement écrire ici la volonté de créer un AGENT AI avec un nouveau cours et pousser cela sur la branche Main
+#Je cherche à savoir si ce commentaire sera présent en local lorsque je retourne sur la branche main
