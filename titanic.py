@@ -8,8 +8,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
 import time
 import os
+import seaborn as sns
 
-os.chdir('/home/coder/work/ensae-reproductibilite-application')
 TrainingData = pd.read_csv('data.csv')
 
 TrainingData.head()
@@ -83,8 +83,8 @@ X = TrainingData.drop("Survived", axis = 'columns')
 # On _split_ notre _dataset_ d'apprentisage pour faire de la validation croisée une partie pour apprendre une partie pour regarder le score.
 # Prenons arbitrairement 10% du dataset en test et 90% pour l'apprentissage.
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
-pd.concat([X_train, y_train], axis=1).to_csv("train.csv")
-pd.concat([X_test, y_test], axis=1).to_csv("test.csv")
+pd.concat([X_train, y_train], axis = 1).to_csv("train.csv")
+pd.concat([X_test, y_test], axis = 1).to_csv("test.csv")
 
 jetonapi = "$trotskitueleski1917"
 
