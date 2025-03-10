@@ -1,0 +1,6 @@
+2025-02-28 15:39 - WARNING - API token has not been configured
+2025-02-28 15:39 - INFO - 83.3% de bonnes réponses sur les données de test pour validation
+2025-02-28 15:39 - INFO - --------------------
+2025-02-28 15:39 - INFO - matrice de confusion
+2025-02-28 15:39 - INFO - [[43  8]
+ [ 7 32]]
