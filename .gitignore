@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 config.yaml
 __pycache__/
+=======
+.env
+__pycache__/
+>>>>>>> 254bf16e43072a0f62a8ad77c2f0bc7c7404c2a8

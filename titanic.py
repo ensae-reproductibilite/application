@@ -135,6 +135,7 @@ TrainingData = pd.read_csv("data.csv")
 
 y = TrainingData["Survived"]
 X = TrainingData.drop("Survived", axis="columns")
+X = TrainingData.drop("Survived", axis="columns")
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.1
