@@ -128,7 +128,6 @@ def evaluate_model(pipe, X_test, y_test):
     return score, matrix
 
 
-
 # IMPORT ET STRUCTURATION DONNEES --------------------------------
 
 TrainingData = pd.read_csv("data.csv")
@@ -140,8 +139,8 @@ X = TrainingData.drop("Survived", axis="columns")
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.1
 )
-pd.concat([X_train, y_train], axis = 1).to_csv("train.csv", index=False)
-pd.concat([X_test, y_test], axis = 1).to_csv("test.csv", index=False)
+pd.concat([X_train, y_train], axis=1).to_csv("train.csv", index=False)
+pd.concat([X_test, y_test], axis=1).to_csv("test.csv", index=False)
 
 
 # PIPELINE ----------------------------
