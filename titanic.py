@@ -2,8 +2,9 @@
 
 Ce module analyse les données du Titanic en utilisant pandas et seaborn.
 """
-
+from dotenv import load_dotenv
 import matplotlib.pyplot as plt
+import os
 import pandas as pd
 import seaborn as sns
 from sklearn.compose import ColumnTransformer
@@ -13,6 +14,17 @@ from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+
+load_dotenv()
+
+
+jeton_api = os.environ.get("JETON_API", "")
+
+if jeton_api.startswith("$"):
+    print("API token has been configured properly")
+else:
+    print("API token has not been configured")
+
 
 TrainingData = pd.read_csv("data.csv")
 
@@ -30,9 +42,9 @@ MAX_FEATURES = "sqrt"
 TrainingData.isnull().sum()
 
 
-## Un peu d'exploration et de feature engineering
+# Un peu d'exploration et de feature engineering
 
-### Statut socioéconomique
+# Statut socioéconomique
 
 fig, axes = plt.subplots(
     1, 2, figsize=(12, 6)
