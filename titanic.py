@@ -2,6 +2,7 @@
 
 Ce module analyse les données du Titanic en utilisant pandas et seaborn.
 """
+import argparse
 from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import os
@@ -35,7 +36,21 @@ TrainingData["Ticket"].str.split("/").str.len()
 
 TrainingData["Name"].str.split(",").str.len()
 
-N_TREES = 20
+
+# Création du parser
+parser = argparse.ArgumentParser(description="Paramétrisation du nombre d'arbres")
+
+# Ajout de l'argument n_trees avec une valeur par défaut de 20
+parser.add_argument(
+    "--N_TREES", type=int, default=20, help="Nombre d'arbres à utiliser"
+)
+
+# Analyse des arguments
+args = parser.parse_args()
+
+# Affichage du résultat
+print(f"Nombre d'arbres : {args.N_TREES}")
+
 MAX__DEPTH = None
 MAX_FEATURES = "sqrt"
 
