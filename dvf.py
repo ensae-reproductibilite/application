@@ -13,6 +13,85 @@ dvf = pd.read_parquet(
 jetonapi = "$trotskitueleski1917"
 
 
+# DONNEES SUPPLEMENTAIRES -----------------------
+
+import requests
+import pandas as pd
+
+# Niveau de vie médian communal
+
+dataset = "DS_FILOSOFI_CC"
+dimension = "FILOSOFI_MEASURE"
+code = "MED_SL"
+value_name = "NIVVIE_MEDIAN"
+time_period = 2023
+geo_level = "COM"
+
+url = f"https://api.insee.fr/melodi/data/{dataset}"
+
+params = {
+  "GEO": geo_level,
+  dimension: code,
+  "TIME_PERIOD": time_period,
+  "maxResult": 40000,
+}
+
+headers = {"Authorization": f"Bearer {jetonapi}"}
+
+response = requests.get(url, params=params, headers=headers, timeout=60)
+response.raise_for_status()
+observations = response.json()["observations"]
+
+niveau_vie = pd.DataFrame(
+  {
+    "CODGEO": obs["dimensions"]["GEO"].split("-")[-1],
+    value_name: obs["measures"]["OBS_VALUE_NIVEAU"].get("value"),
+  }
+  for obs in observations
+)
+
+# Taux de pauvreté communal
+
+dataset = "DS_FILOSOFI_CC"
+dimension = "FILOSOFI_MEASURE"
+code = "PR_MD60"
+value_name = "TAUX_PAUVRETE"
+time_period = 2023
+geo_level = "COM"
+
+url = f"https://api.insee.fr/melodi/data/{dataset}"
+
+params = {
+  "GEO": geo_level,
+  dimension: code,
+  "TIME_PERIOD": time_period,
+  "maxResult": 40000,
+}
+
+headers = {"Authorization": f"Bearer {jetonapi}"}
+
+response = requests.get(url, params=params, headers=headers, timeout=60)
+response.raise_for_status()
+observations = response.json()["observations"]
+
+taux_pauvrete = pd.DataFrame(
+  {
+    "CODGEO": obs["dimensions"]["GEO"].split("-")[-1],
+    value_name: obs["measures"]["OBS_VALUE_NIVEAU"].get("value"),
+  }
+  for obs in observations
+)
+
+
+# Merge aux données initiales
+
+dvf = dvf.merge(niveau_vie, left_on="code_commune", right_on="CODGEO", how="left").drop(columns="CODGEO")
+dvf = dvf.merge(taux_pauvrete, left_on="code_commune", right_on="CODGEO", how="left").drop(columns="CODGEO")
+
+print(
+    dvf.head(5)
+)
+
 # Un peu d'exploration et de feature engineering
 
 print("Statistiques descriptives ---------------------")
