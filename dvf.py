@@ -1,25 +1,77 @@
-url = "https://www.data.gouv.fr/api/1/datasets/r/902db087-b0eb-4cbb-a968-0b499bde5bc4"
-
+from pathlib import Path
 import requests
 import seaborn as sns
+import pandas as pd
+import geopandas as gpd
+
 
 print("Lecture des données ------------------------")
 
-import pandas as pd
+departements_paris = ["75", "92", "93", "94"]
 
-dvf = pd.read_parquet(
-    "https://minio.lab.sspcloud.fr/projet-formation/nouvelles-sources/data/geoparquet/dvf.parquet"
-)
+SOURCES = {
+    "dvf.parquet":
+        "https://minio.lab.sspcloud.fr/projet-formation/nouvelles-sources/data/geoparquet/dvf.parquet",
+    "filosofi_carreaux_200m_2021.parquet":
+        "https://www.data.gouv.fr/api/1/datasets/r/55432374-a91d-43d0-923d-4514dc3eb951",
+}
 
-jetonapi = "$trotskitueleski1917"
+def download_sources(url, cible):
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    with open(cible, "wb") as f:
+        f.write(r.content)
+
+
+
+jetonapi = "1SuperJetonUltraConfidentiel!!!"
+
+
+data_location = Path("data")
+data_location.mkdir(exist_ok=True)
+
+
+for nom, url in SOURCES.items():
+    cible = data_location / nom
+    if cible.exists():
+        print(f"{nom:42s} déjà présent ({cible.stat().st_size/1e6:.0f} Mo)")
+    else:
+        print(f"Téléchargement de {nom} ...")
+        download_sources(url, cible)
+        print(f"  -> {cible.stat().st_size/1e6:.0f} Mo")
+
+
+dvf = gpd.read_parquet(data_location / "dvf.parquet")
+dvf = dvf.loc[dvf['valeur_fonciere']<1e6]
 
 
 # DONNEES SUPPLEMENTAIRES -----------------------
 
-import requests
-import pandas as pd
+# 1/ Niveau de vie médian dans les 200m ===============
+# Source: données carroyées Filosofi
 
-# Niveau de vie médian communal
+filo_cols = [
+    "idcar_200m", "ind", "men", "men_pauv", "men_prop",
+    "ind_snv", "geometry"]
+filo = gpd.read_parquet(data_location / "filosofi_carreaux_200m_2021.parquet", columns=filo_cols)
+filo = filo.rename(
+    columns = {"men": "nbre_menages", "men_pauv": "nbre_menages_pauvres", "men_prop": "nbre_menages_prop", "ind_snv": "somme_nv_vie"}
+)
+
+print(f"Reprojection de {dvf.shape[0]} de transactions immobilières du CRS {dvf.crs.to_epsg()} à {filo.crs.to_epsg()}")
+
+dvf = dvf.to_crs(filo.crs)
+dvf = dvf.sjoin(filo, how="left", predicate="within")
+
+
+print('Restriction aux départements de la petite couronne')
+
+dvf = dvf.loc[dvf['code_departement'].isin(departements_paris)]
+
+
+# 2/ Niveau de vie médian communal ====================
+# Source: données agrégées Filosofi
+
 
 dataset = "DS_FILOSOFI_CC"
 dimension = "FILOSOFI_MEASURE"
@@ -96,34 +148,34 @@ print(
 # Un peu d'exploration et de feature engineering
 
 print("Statistiques descriptives ---------------------")
-## Prix
 
 sns.histplot(data=dvf, x="valeur_fonciere")
 sns.histplot(data=dvf, x="valeur_fonciere", log_scale = True)
 
-## Prix surface
 
-departements_paris = ["75", "92", "93", "94"]
-dvf_paris = dvf.loc[dvf['code_departement'].isin(departements_paris)]
+grid = sns.scatterplot(data=dvf, x="surface_reelle_bati", y="valeur_fonciere")
+grid.set(xscale="log", yscale="log")
 
 
-numeric_features = ["surface_reelle_bati", "nombre_pieces_principales"]
+print("Feature engineering")
+
+import numpy as np
+
+dvf['tx_pauvrete'] = dvf['nbre_menages_pauvres']/dvf['nbre_menages']
+dvf['nv_vie_moyen'] = dvf['somme_nv_vie']/dvf['nbre_menages']
+dvf['prix_m2'] = dvf['valeur_fonciere']/dvf['surface_reelle_bati']
+dvf['log_surface'] = np.log(dvf["surface_reelle_bati"])
+
+numeric_features = ["log_surface", "nombre_pieces_principales", "nbre_menages", "tx_pauvrete", "nv_vie_moyen", "NIVVIE_MEDIAN", "TAUX_PAUVRETE"]
 categorical_features = ["code_commune", "type_local"]
 features = list(set(numeric_features + categorical_features))
 
-TrainingData = dvf_paris.dropna(subset=["valeur_fonciere"] + features)
-TrainingData = TrainingData.loc[TrainingData["valeur_fonciere"]<1e6]
+TrainingData = dvf.dropna(subset=["prix_m2"] + features)
 
-
-grid = sns.scatterplot(data=dvf_paris, x="lot1_surface_carrez", y="valeur_fonciere")
-grid.set(xscale="log", yscale="log")
 
 ## Prix au m2 par commune
 
-dvf_m2 = dvf_paris.loc[dvf_paris["surface_reelle_bati"] > 0].copy()
-dvf_m2["prix_m2"] = dvf_m2["valeur_fonciere"] / dvf_m2["surface_reelle_bati"]
-
-prix_m2_commune = dvf_m2.groupby(["code_commune", "nom_commune"])["prix_m2"].mean().sort_values()
+prix_m2_commune = dvf.groupby(["code_commune", "nom_commune"])["prix_m2"].mean().sort_values()
 
 print("Bottom 5 communes (prix au m2 le plus bas) :")
 print(prix_m2_commune.head(5))
@@ -166,7 +218,7 @@ pipe = Pipeline([
 
 # splitting samples
 X = TrainingData[features]
-y = TrainingData["valeur_fonciere"]
+y = TrainingData["prix_m2"]
 
 # On _split_ notre _dataset_ d'apprentisage pour faire de la validation croisée une partie pour apprendre une partie pour regarder le score.
 # Prenons arbitrairement 10% du dataset en test et 90% pour l'apprentissage.
