@@ -1,6 +1,7 @@
 url = "https://www.data.gouv.fr/api/1/datasets/r/902db087-b0eb-4cbb-a968-0b499bde5bc4"
 
 import requests
+import seaborn as sns
 
 print("Lecture des données ------------------------")
 
@@ -104,8 +105,14 @@ sns.histplot(data=dvf, x="valeur_fonciere", log_scale = True)
 
 departements_paris = ["75", "92", "93", "94"]
 dvf_paris = dvf.loc[dvf['code_departement'].isin(departements_paris)]
-features = ["surface_reelle_bati", "code_commune", "type_local"]
+
+
+numeric_features = ["surface_reelle_bati", "nombre_pieces_principales"]
+categorical_features = ["code_commune", "type_local"]
+features = list(set(numeric_features + categorical_features))
+
 TrainingData = dvf_paris.dropna(subset=["valeur_fonciere"] + features)
+TrainingData = TrainingData.loc[TrainingData["valeur_fonciere"]<1e6]
 
 
 grid = sns.scatterplot(data=dvf_paris, x="lot1_surface_carrez", y="valeur_fonciere")
@@ -133,9 +140,6 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 
 
-
-numeric_features = ["surface_reelle_bati"]
-categorical_features = ["code_commune", "type_local"]
 
 numeric_transformer = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="median")),
@@ -205,5 +209,38 @@ print("Bottom 5 communes (RMSE la plus faible) :")
 print(rmse_commune.head(5))
 print("Top 5 communes (RMSE la plus élevée) :")
 print(rmse_commune.tail(5))
+
+
+# Évaluation de la qualité du modèle avec skore ---------------------
+import matplotlib.pyplot as plt
+from sklearn.base import clone
+from skore import EstimatorReport, CrossValidationReport
+
+print("Évaluation skore ---------------------")
+
+# Rapport sur le modèle (skore réentraîne une copie du pipeline sur le même découpage)
+report = EstimatorReport(
+    clone(pipe),
+    X_train=X_train,
+    y_train=y_train,
+    X_test=X_test,
+    y_test=y_test,
+)
+
+print(report)
+
+# Tableau de métriques (RMSE, MAE, R², temps de calcul) sur train et test
+metrics = report.metrics.summarize(data_source="both").frame()
+print(metrics)
+
+# Graphique des erreurs de prédiction (prédit vs réel)
+report.metrics.prediction_error().plot(kind="actual_vs_predicted")
+plt.savefig("prediction_error.png", dpi=150, bbox_inches="tight")
+plt.close()
+
+# Importance des variables par permutation
+importance = report.inspection.permutation_importance(data_source="test").frame()
+print(importance)
+
 
 
