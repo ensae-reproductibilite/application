@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 
 
+
 print("Lecture des données ------------------------")
 
 departements_paris = ["75", "92", "93", "94"]
@@ -43,6 +44,7 @@ for nom, url in SOURCES.items():
 
 dvf = gpd.read_parquet(data_location / "dvf.parquet")
 dvf = dvf.loc[dvf['valeur_fonciere']<1e6]
+dvf["annee"] = pd.to_datetime(dvf["date_mutation"]).dt.year
 
 
 # DONNEES SUPPLEMENTAIRES -----------------------
@@ -69,9 +71,10 @@ print('Restriction aux départements de la petite couronne')
 dvf = dvf.loc[dvf['code_departement'].isin(departements_paris)]
 
 
-# 2/ Niveau de vie médian communal ====================
+# 2/ Données au niveau communal ====================
 # Source: données agrégées Filosofi
 
+# Niveau de vie médian dans la commune
 
 dataset = "DS_FILOSOFI_CC"
 dimension = "FILOSOFI_MEASURE"
@@ -103,7 +106,7 @@ niveau_vie = pd.DataFrame(
   for obs in observations
 )
 
-# Taux de pauvreté communal
+# Taux de pauvreté (niveau commune)
 
 dataset = "DS_FILOSOFI_CC"
 dimension = "FILOSOFI_MEASURE"
@@ -166,11 +169,14 @@ dvf['nv_vie_moyen'] = dvf['somme_nv_vie']/dvf['nbre_menages']
 dvf['prix_m2'] = dvf['valeur_fonciere']/dvf['surface_reelle_bati']
 dvf['log_surface'] = np.log(dvf["surface_reelle_bati"])
 
+
+# CREATION DU PIPELINE --------------------------------------
+
 numeric_features = ["log_surface", "nombre_pieces_principales", "nbre_menages", "tx_pauvrete", "nv_vie_moyen", "NIVVIE_MEDIAN", "TAUX_PAUVRETE"]
-categorical_features = ["code_commune", "type_local"]
+categorical_features = ["code_commune", "type_local", "annee"]
 features = list(set(numeric_features + categorical_features))
 
-TrainingData = dvf.dropna(subset=["prix_m2"] + features)
+dvf_start_data = dvf.dropna(subset=["prix_m2"] + features)
 
 
 ## Prix au m2 par commune
@@ -217,12 +223,12 @@ pipe = Pipeline([
 
 
 # splitting samples
-X = TrainingData[features]
-y = TrainingData["prix_m2"]
+X = dvf_start_data[features]
+y = dvf_start_data["prix_m2"]
+#weights = dvf_start_data["code_commune"] + "_" + dvf_start_data["annee"].astype(str)
 
-# On _split_ notre _dataset_ d'apprentisage pour faire de la validation croisée une partie pour apprendre une partie pour regarder le score.
-# Prenons arbitrairement 10% du dataset en test et 90% pour l'apprentissage.
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)# stratify = weights)
+
 pd.concat([X_train, y_train], axis=1).to_csv("train.csv")
 pd.concat([X_test, y_test], axis=1).to_csv("test.csv")
 
@@ -253,7 +259,7 @@ rmse_commune = (
     .reset_index()
 )
 
-cog = TrainingData[["code_commune", "nom_commune"]].drop_duplicates()
+cog = dvf_start_data[["code_commune", "nom_commune"]].drop_duplicates()
 
 rmse_commune = rmse_commune.merge(cog, on="code_commune").sort_values("rmse")
 
@@ -294,5 +300,4 @@ plt.close()
 importance = report.inspection.permutation_importance(data_source="test").frame()
 print(importance)
 
-
-
+print("Fin du script !")
