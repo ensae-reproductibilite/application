@@ -169,10 +169,16 @@ dvf['nv_vie_moyen'] = dvf['somme_nv_vie']/dvf['nbre_menages']
 dvf['prix_m2'] = dvf['valeur_fonciere']/dvf['surface_reelle_bati']
 dvf['log_surface'] = np.log(dvf["surface_reelle_bati"])
 
+# Distance à la tour Eiffel (proxy de centralité, très corrélé au prix en IdF).
+# On calcule la distance en Lambert-93 (mètres) puis on passe en log(1 + km).
+tour_eiffel = gpd.GeoSeries.from_xy([2.2945], [48.8584], crs="EPSG:4326").to_crs("EPSG:2154")
+distance_eiffel_km = dvf.geometry.to_crs("EPSG:2154").distance(tour_eiffel.iloc[0]) / 1000
+dvf['log_distance_eiffel'] = np.log1p(distance_eiffel_km)
+
 
 # CREATION DU PIPELINE --------------------------------------
 
-numeric_features = ["log_surface", "nombre_pieces_principales", "nbre_menages", "tx_pauvrete", "nv_vie_moyen", "NIVVIE_MEDIAN", "TAUX_PAUVRETE"]
+numeric_features = ["log_surface", "log_distance_eiffel", "nombre_pieces_principales", "nbre_menages", "tx_pauvrete", "nv_vie_moyen", "NIVVIE_MEDIAN", "TAUX_PAUVRETE"]
 categorical_features = ["code_commune", "type_local", "annee"]
 features = list(set(numeric_features + categorical_features))
 
@@ -191,22 +197,27 @@ print(prix_m2_commune.tail(5))
 
 ## Encoder les données imputées ou transformées.
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+from sklearn.preprocessing import OrdinalEncoder, FunctionTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
+from lightgbm import LGBMRegressor
 
+
+def as_category(df):
+    """Convertit les colonnes en dtype 'category' pour que LightGBM les
+    reconnaisse automatiquement comme variables catégorielles."""
+    return df.astype("category")
 
 
 numeric_transformer = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="median")),
-    ("scaler", MinMaxScaler()),
 ])
 
 categorical_transformer = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="most_frequent")),
-    ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ("ordinal", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)),
+    ("as_category", FunctionTransformer(as_category)),
 ])
 
 preprocessor = ColumnTransformer(
@@ -214,12 +225,28 @@ preprocessor = ColumnTransformer(
         ("Preprocessing numerical", numeric_transformer, numeric_features),
         ("Preprocessing categorical", categorical_transformer, categorical_features),
     ]
-)
+).set_output(transform="pandas")
 
-pipe = Pipeline([
+_pipe = Pipeline([
     ("preprocessor", preprocessor),
-    ("regressor", RandomForestRegressor(n_estimators=20)),
+    ("regressor", LGBMRegressor(
+        n_estimators=1500,
+        learning_rate=0.03,
+        num_leaves=31,
+        min_child_samples=10,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        random_state=0,
+        verbose=-1,
+    )),
 ])
+
+# Le prix au m² est très asymétrique : on apprend sur log(1 + prix) et on
+# repasse en euros à la prédiction. La perte quadratique est alors moins
+# dominée par les transactions les plus chères -> meilleur RMSE / R².
+pipe = TransformedTargetRegressor(
+    regressor=_pipe, func=np.log1p, inverse_func=np.expm1
+)
 
 
 # splitting samples
@@ -227,7 +254,7 @@ X = dvf_start_data[features]
 y = dvf_start_data["prix_m2"]
 #weights = dvf_start_data["code_commune"] + "_" + dvf_start_data["annee"].astype(str)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)# stratify = weights)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=0)# stratify = weights)
 
 pd.concat([X_train, y_train], axis=1).to_csv("train.csv")
 pd.concat([X_test, y_test], axis=1).to_csv("test.csv")
@@ -235,7 +262,6 @@ pd.concat([X_test, y_test], axis=1).to_csv("test.csv")
 
 # Entraînement du modèle -------------------------------
 
-#Ici demandons d'avoir 20 arbres
 pipe.fit(X_train, y_train)
 
 
