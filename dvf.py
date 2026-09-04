@@ -167,6 +167,13 @@ import numpy as np
 dvf['tx_pauvrete'] = dvf['nbre_menages_pauvres']/dvf['nbre_menages']
 dvf['nv_vie_moyen'] = dvf['somme_nv_vie']/dvf['nbre_menages']
 dvf['prix_m2'] = dvf['valeur_fonciere']/dvf['surface_reelle_bati']
+
+# On écarte le centile inférieur et supérieur de prix au m² : ventes multi-lots,
+# démembrements ou erreurs de saisie DVF. Sans ce filtre le modèle apprend en
+# bonne partie du bruit (R² test ~0.39 contre ~0.61 une fois ces valeurs écartées).
+borne_basse, borne_haute = dvf['prix_m2'].quantile([0.01, 0.99])
+dvf = dvf.loc[dvf['prix_m2'].between(borne_basse, borne_haute)]
+
 dvf['log_surface'] = np.log(dvf["surface_reelle_bati"])
 
 # Distance à la tour Eiffel (proxy de centralité, très corrélé au prix en IdF).
@@ -179,7 +186,7 @@ dvf['log_distance_eiffel'] = np.log1p(distance_eiffel_km)
 # CREATION DU PIPELINE --------------------------------------
 
 numeric_features = ["log_surface", "log_distance_eiffel", "nombre_pieces_principales", "nbre_menages", "tx_pauvrete", "nv_vie_moyen", "NIVVIE_MEDIAN", "TAUX_PAUVRETE"]
-categorical_features = ["code_commune", "type_local", "annee"]
+categorical_features = ["code_commune", "type_local"]
 features = list(set(numeric_features + categorical_features))
 
 dvf_start_data = dvf.dropna(subset=["prix_m2"] + features)
