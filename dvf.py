@@ -1,9 +1,11 @@
 from pathlib import Path
 import requests
-import seaborn as sns
 import pandas as pd
 import geopandas as gpd
+import os
+import duckdb
 
+os.chdir('/home/coder/work/ensae-reproductibilite-application')
 
 
 print("Lecture des données ------------------------")
@@ -43,6 +45,52 @@ for nom, url in SOURCES.items():
 
 
 dvf = gpd.read_parquet(data_location / "dvf.parquet")
+
+
+con = duckdb.connect(database=":memory:")
+
+# DuckDB ne sait pas lire la colonne geometry, on regarde les autres colonnes
+dvf_attributs = dvf.drop(columns="geometry")
+
+# Check la structure de code_commune: 5 caractères qui commencent par le code département
+bad = con.sql("""
+    SELECT COUNT(*) AS n_bad
+    FROM dvf_attributs
+    WHERE length(code_commune) <> 5
+    OR NOT starts_with(code_commune, code_departement)
+""").fetchone()[0]
+
+if bad == 0:
+    print("Test 'code_commune' OK: toujours 5 caractères commençant par le département")
+else:
+    print(f"Problème dans la colonne code_commune: {bad} codes mal formés.")
+
+
+# Vérifie les valeurs manquantes
+# TODO: généraliser à toutes les variables
+n_missing = con.sql("""
+    SELECT COUNT(*) AS n_missing
+    FROM dvf_attributs
+    WHERE valeur_fonciere IS NULL
+""").fetchone()[0]
+
+message_ok = "Pas de valeur manquante pour la variable valeur_fonciere"
+message_warn = f"{n_missing} valeurs manquantes pour la variable valeur_fonciere"
+message = message_ok if n_missing == 0 else message_warn
+print(message)
+
+n_missing = con.sql("""
+    SELECT COUNT(*) AS n_missing
+    FROM dvf_attributs
+    WHERE surface_reelle_bati IS NULL
+""").fetchone()[0]
+
+message_ok = "Pas de valeur manquante pour la variable surface_reelle_bati"
+message_warn = f"{n_missing} valeurs manquantes pour la variable surface_reelle_bati"
+message = message_ok if n_missing == 0 else message_warn
+print(message)
+
+
 dvf = dvf.loc[dvf['valeur_fonciere']<1e6]
 dvf["annee"] = pd.to_datetime(dvf["date_mutation"]).dt.year
 
@@ -305,6 +353,21 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_
 
 pd.concat([X_train, y_train], axis=1).to_csv("train.csv")
 pd.concat([X_test, y_test], axis=1).to_csv("test.csv")
+
+# check que pas de problème de data leakage
+if set(X_train["code_commune"].dropna().unique()) - set(X_test["code_commune"].dropna().unique()):
+    message = "Problème de data leakage pour la variable code_commune"
+else:
+    message = "Pas de problème de data leakage pour la variable code_commune"
+
+print(message)
+
+if set(X_train["type_local"].dropna().unique()) - set(X_test["type_local"].dropna().unique()):
+    message = "Problème de data leakage pour la variable type_local"
+else:
+    message = "Pas de problème de data leakage pour la variable code_commune"
+
+print(message)
 
 
 # Entraînement du modèle -------------------------------
