@@ -54,10 +54,13 @@ dvf["annee"] = pd.to_datetime(dvf["date_mutation"]).dt.year
 
 filo_cols = [
     "idcar_200m", "ind", "men", "men_pauv", "men_prop",
-    "ind_snv", "geometry"]
+    "ind_snv", "log_soc", "log_av45", "men_surf", "geometry"]
 filo = gpd.read_parquet(data_location / "filosofi_carreaux_200m_2021.parquet", columns=filo_cols)
 filo = filo.rename(
-    columns = {"men": "nbre_menages", "men_pauv": "nbre_menages_pauvres", "men_prop": "nbre_menages_prop", "ind_snv": "somme_nv_vie"}
+    columns = {
+        "men": "nbre_menages", "men_pauv": "nbre_menages_pauvres", "men_prop": "nbre_menages_prop", "ind_snv": "somme_nv_vie",
+        "log_soc": "nbre_logements_sociaux", "log_av45": "nbre_logements_avant_1945", "men_surf": "surface_totale_logements"
+    }
 )
 
 print(f"Reprojection de {dvf.shape[0]} de transactions immobilières du CRS {dvf.crs.to_epsg()} à {filo.crs.to_epsg()}")
@@ -81,7 +84,10 @@ dimension = "FILOSOFI_MEASURE"
 code = "MED_SL"
 value_name = "NIVVIE_MEDIAN"
 time_period = 2023
-geo_level = "COM"
+# Dans DVF, Paris est codé par arrondissement (75101 à 75120) : avec le seul
+# niveau COM (Paris = 75056), toutes les ventes parisiennes perdent leurs
+# variables communales et sont ensuite éliminées par le dropna.
+geo_level = ["COM", "ARM"]
 
 url = f"https://api.insee.fr/melodi/data/{dataset}"
 
@@ -113,7 +119,7 @@ dimension = "FILOSOFI_MEASURE"
 code = "PR_MD60"
 value_name = "TAUX_PAUVRETE"
 time_period = 2023
-geo_level = "COM"
+geo_level = ["COM", "ARM"]
 
 url = f"https://api.insee.fr/melodi/data/{dataset}"
 
@@ -166,6 +172,12 @@ import numpy as np
 
 dvf['tx_pauvrete'] = dvf['nbre_menages_pauvres']/dvf['nbre_menages']
 dvf['nv_vie_moyen'] = dvf['somme_nv_vie']/dvf['nbre_menages']
+# Dans Filosofi, chaque ménage occupe un logement : on peut donc rapporter
+# les comptes de logements au nombre de ménages du carreau.
+dvf['part_proprietaires'] = dvf['nbre_menages_prop']/dvf['nbre_menages']
+dvf['part_logements_sociaux'] = dvf['nbre_logements_sociaux']/dvf['nbre_menages']
+dvf['part_logements_avant_1945'] = dvf['nbre_logements_avant_1945']/dvf['nbre_menages']
+dvf['surface_moyenne_logements'] = dvf['surface_totale_logements']/dvf['nbre_menages']
 dvf['prix_m2'] = dvf['valeur_fonciere']/dvf['surface_reelle_bati']
 
 # On écarte le centile inférieur et supérieur de prix au m² : ventes multi-lots,
@@ -174,7 +186,26 @@ dvf['prix_m2'] = dvf['valeur_fonciere']/dvf['surface_reelle_bati']
 borne_basse, borne_haute = dvf['prix_m2'].quantile([0.01, 0.99])
 dvf = dvf.loc[dvf['prix_m2'].between(borne_basse, borne_haute)]
 
+# Les bornes ci-dessus sont tirées par Paris (≈ 21 000 €/m² en haut) : en
+# banlieue, des ventes à 15-20 000 €/m² (erreurs de surface, ventes groupées)
+# passent le filtre et pèsent ~1/3 de l'erreur quadratique hors Paris.
+# On applique donc le même filtre au marché local, commune par commune.
+prix_m2_par_commune = dvf.groupby("code_commune")["prix_m2"]
+dvf = dvf.loc[
+    dvf['prix_m2'].between(
+        prix_m2_par_commune.transform("quantile", 0.01),
+        prix_m2_par_commune.transform("quantile", 0.99),
+    )
+]
+
 dvf['log_surface'] = np.log(dvf["surface_reelle_bati"])
+
+# Ce qui est vendu en plus du logement lui-même : le prix DVF inclut les
+# dépendances (cave, parking = lots supplémentaires) et le terrain des maisons.
+# Le rapport surface Carrez / surface bâtie signale les ventes où la surface
+# déclarée ne correspond pas au bien (pas de Carrez hors copropriété -> NaN).
+dvf['log_surface_terrain'] = np.log1p(dvf['surface_terrain'].fillna(0))
+dvf['ratio_carrez'] = dvf['lot1_surface_carrez']/dvf['surface_reelle_bati']
 
 # Distance à la tour Eiffel (proxy de centralité, très corrélé au prix en IdF).
 # On calcule la distance en Lambert-93 (mètres) puis on passe en log(1 + km).
@@ -185,11 +216,20 @@ dvf['log_distance_eiffel'] = np.log1p(distance_eiffel_km)
 
 # CREATION DU PIPELINE --------------------------------------
 
-numeric_features = ["log_surface", "log_distance_eiffel", "nombre_pieces_principales", "nbre_menages", "tx_pauvrete", "nv_vie_moyen", "NIVVIE_MEDIAN", "TAUX_PAUVRETE"]
+numeric_features = [
+    "log_surface", "log_distance_eiffel", "nombre_pieces_principales",
+    "nombre_lots", "log_surface_terrain", "ratio_carrez",
+    "nbre_menages", "tx_pauvrete", "nv_vie_moyen",
+    "part_proprietaires", "part_logements_sociaux", "part_logements_avant_1945", "surface_moyenne_logements",
+    "NIVVIE_MEDIAN", "TAUX_PAUVRETE"
+]
 categorical_features = ["code_commune", "type_local"]
 features = list(set(numeric_features + categorical_features))
 
-dvf_start_data = dvf.dropna(subset=["prix_m2"] + features)
+# Les valeurs manquantes des variables explicatives (ratio_carrez hors
+# copropriété, quelques carreaux ou communes sans donnée Filosofi) sont
+# imputées dans le pipeline : on n'écarte que les lignes sans cible.
+dvf_start_data = dvf.dropna(subset=["prix_m2"])
 
 
 ## Prix au m2 par commune
@@ -250,7 +290,7 @@ _pipe = Pipeline([
 
 # Le prix au m² est très asymétrique : on apprend sur log(1 + prix) et on
 # repasse en euros à la prédiction. La perte quadratique est alors moins
-# dominée par les transactions les plus chères -> meilleur RMSE / R².
+# dominée par les transactions les plus chères.
 pipe = TransformedTargetRegressor(
     regressor=_pipe, func=np.log1p, inverse_func=np.expm1
 )
@@ -277,8 +317,8 @@ from sklearn.metrics import root_mean_squared_error
 
 rmse_train = root_mean_squared_error(y_train, pipe.predict(X_train))
 rmse_test = root_mean_squared_error(y_test, pipe.predict(X_test))
-print(f"RMSE sur l'apprentissage : {rmse_train:,.0f} €")
-print(f"RMSE sur le test : {rmse_test:,.0f} €")
+print(f"RMSE sur l'apprentissage : {rmse_train:,.0f} €/m²")
+print(f"RMSE sur le test : {rmse_test:,.0f} €/m²")
 
 # RMSE par commune (top et bottom 5)
 residuals = X_test[["code_commune"]].copy()
