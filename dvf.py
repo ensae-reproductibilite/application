@@ -354,18 +354,18 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_
 pd.concat([X_train, y_train], axis=1).to_csv("train.csv")
 pd.concat([X_test, y_test], axis=1).to_csv("test.csv")
 
-# check que pas de problème de data leakage
-if set(X_train["code_commune"].dropna().unique()) - set(X_test["code_commune"].dropna().unique()):
-    message = "Problème de data leakage pour la variable code_commune"
+# check que toutes les modalités du test sont connues du modèle
+if set(X_test["code_commune"].dropna().unique()) - set(X_train["code_commune"].dropna().unique()):
+    message = "Modalités de code_commune absentes de l'apprentissage"
 else:
-    message = "Pas de problème de data leakage pour la variable code_commune"
+    message = "Toutes les modalités de code_commune du test sont connues du modèle"
 
 print(message)
 
-if set(X_train["type_local"].dropna().unique()) - set(X_test["type_local"].dropna().unique()):
-    message = "Problème de data leakage pour la variable type_local"
+if set(X_test["type_local"].dropna().unique()) - set(X_train["type_local"].dropna().unique()):
+    message = "Modalités de type_local absentes de l'apprentissage"
 else:
-    message = "Pas de problème de data leakage pour la variable code_commune"
+    message = "Toutes les modalités de code_commune du test sont connues du modèle"
 
 print(message)
 
