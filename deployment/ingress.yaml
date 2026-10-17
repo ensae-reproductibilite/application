@@ -1,0 +1,21 @@
+#| filename: "deployment/ingress.yaml"
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: titanic-ingress
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - titanic-ensae.lab.sspcloud.fr
+  rules:
+  - host: titanic-ensae.lab.sspcloud.fr
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: titanic-service
+            port:
+              number: 80
