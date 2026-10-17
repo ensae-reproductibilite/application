@@ -1,0 +1,15 @@
+config.yaml
+__pycache__/
+.env
+*.log
+data/
+model.skops
+/.quarto/
+**/*.quarto_ipynb
+
+/.quarto/
+*.html
+*_files
+_site/
+mlruns/*
+confusion_matrix.txt
