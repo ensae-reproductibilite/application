@@ -1,0 +1,30 @@
+{
+  "name": "TitanicPassengersBatch",
+  "schema": {
+    "type": "array",
+    "minItems": 5,
+    "maxItems": 5,
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "age": { "type": "integer", "minimum": 0, "maximum": 120 },
+        "embarked": { "type": "string", "enum": ["C", "Q", "S"] },
+        "sex": { "type": "integer", "enum": [1, 2] },
+        "pcs": { "type": "integer", "minimum": 1, "maximum": 9 },
+        "fare": { "type": "number", "exclusiveMinimum": 0 },
+        "fare_band": { "type": "string", "enum": ["low", "mid", "high"] },
+        "survived": { "type": "integer", "enum": [0, 1] }
+      },
+      "required": [
+        "age",
+        "embarked",
+        "sex",
+        "pcs",
+        "fare",
+        "fare_band",
+        "survived"
+      ]
+    }
+  }
+}
