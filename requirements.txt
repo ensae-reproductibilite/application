@@ -1,0 +1,12 @@
+duckdb>=2.0.0
+geopandas
+lightgbm
+matplotlib
+numpy
+pandas
+pyarrow
+python-dotenv
+requests
+scikit-learn
+seaborn
+skore
