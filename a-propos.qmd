@@ -1,0 +1,31 @@
+---
+title: "À propos"
+lang: fr
+---
+
+Ce site estime le prix d'un logement de Paris et de la petite couronne (92, 93, 94) à partir des ventes DVF de 2022. La page d'accueil est une carte des sections et parcelles cadastrales ; cliquer sur une parcelle ouvre ses ventes et compare le prix réel à l'estimation du modèle.
+
+## Qui fait quoi ?
+
+Le site est un __frontend__ : des fichiers statiques (HTML et JavaScript) servis par GitHub Pages et exécutés dans votre navigateur. Il s'appuie sur un __backend__, l'API, qui n'est sollicitée que pour les estimations.
+
+__Dans le navigateur__
+
+- les ventes DVF sont lues dans un fichier parquet avec DuckDB-WASM, une base de données qui tourne dans la page ;
+- la carte est dessinée avec MapLibre GL JS à partir de tuiles vectorielles : fond IGN (Plan IGN) et cadastre (sections et parcelles) ;
+- les médianes de prix par parcelle sont calculées sur place, à la demande.
+
+__Sur le serveur (API)__
+
+- le modèle de prédiction, appelé par `GET /predict` avec l'adresse, le type de logement, la surface et le nombre de pièces ;
+- le géocodage de l'adresse et les données socio-économiques qui alimentent le modèle.
+
+## Pourquoi cette séparation ?
+
+- le modèle et le jeton `JETON_API` restent côté serveur : le navigateur n'en voit jamais le contenu ;
+- le site est hébergé gratuitement sur un serveur de fichiers statiques (GitHub Pages), sans code à exécuter ;
+- le navigateur peut appeler l'API parce que le CORS est autorisé dans l'ingress du déploiement.
+
+## Documentation de l'API
+
+Retrouver l'API sur [https://<APP_NAME>.lab.sspcloud.fr/docs](https://<APP_NAME>.lab.sspcloud.fr/docs) pour jouer avec d'autres exemples.
