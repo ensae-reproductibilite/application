@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dvf-deployment
+  labels:
+    app: dvf
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dvf
+  template:
+    metadata:
+      labels:
+        app: dvf
+    spec:
+      containers:
+      - name: dvf
+        image: <DOCKERHUB_USERNAME>/application:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: JETON_API
+          valueFrom:
+            secretKeyRef:
+              name: api-jeton
+              key: JETON_API
