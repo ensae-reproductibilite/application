@@ -1,0 +1,18 @@
+project:
+  type: website
+  render:
+    - index.qmd
+
+website:
+  title: "Prix de l'immobilier en petite couronne"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Accueil
+
+format:
+  html:
+    lang: fr
+    theme: cosmo
+    css: styles.css
+    toc: true

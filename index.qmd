@@ -1,0 +1,48 @@
+---
+title: "Combien vaut ce logement ?"
+echo: false
+---
+
+Notre modèle estime le prix d'un logement à Paris et dans la petite couronne (92, 93, 94) à partir de son adresse, en s'appuyant sur les transactions DVF de 2022 enrichies par des données socio-économiques Filosofi.
+
+```{ojs}
+viewof adresse = Inputs.text({label: "Adresse", value: "20 avenue de Ségur 75007 Paris", submit: "Estimer"})
+```
+
+```{ojs}
+viewof type_local = Inputs.radio(["Appartement", "Maison"], {value: "Appartement", label: "Type de logement"})
+```
+
+```{ojs}
+viewof surface = Inputs.range([9, 300], {step: 1, value: 45, label: "Surface (m²)"})
+```
+
+```{ojs}
+viewof nombre_pieces = Inputs.range([1, 10], {step: 1, value: 2, label: "Nombre de pièces"})
+```
+
+<br>
+
+__Estimation de notre modèle__ :
+
+```{ojs}
+md`**Prix estimé** : ${prediction.prix_estime.toLocaleString("fr-FR")} € (${prediction.prix_m2.toLocaleString("fr-FR")} €/m²) — adresse retenue : ${prediction.adresse}`
+```
+
+```{ojs}
+apiRoot = "https://<APP_NAME>.lab.sspcloud.fr"
+```
+
+```{ojs}
+prediction_url = `${apiRoot}/predict?adresse=${encodeURIComponent(adresse)}&type_local=${type_local}&surface=${surface}&nombre_pieces=${nombre_pieces}`
+```
+
+```{ojs}
+prediction = d3.json(prediction_url)
+```
+
+
+## Documentation de l'API
+
+Retrouver l'API sur [https://<APP_NAME>.lab.sspcloud.fr/docs](https://<APP_NAME>.lab.sspcloud.fr/docs) pour jouer avec
+d'autres exemples.
