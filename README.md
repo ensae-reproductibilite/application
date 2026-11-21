@@ -1,13 +1,19 @@
-# Exercices d'application du cours de "Mise en production de projets de data science" (ENSAE, voie data science)
+# Probabilité de survie sur le Titanic
 
-Point de départ du projet du cours de mise en production de l'ENSAE.
+Ce projet met à disposition une API pour vous permettre de faire vos prédictions à partir de notre modèle Titanic disponible sur
+titanic.lab.sspcloud.fr. Le code utilisé pour le déploiement est disponible sur [un dépôt `GitOps`](https://github.com/ensae-reproductibilite/application-gitops).
 
-Exercice fil rouge guidé sur https://ensae-reproductibilite.github.io/website/chapters/application.html
+Pour tester en local ce code, après l'avoir cloné, installer les dépendances:
 
+```bash
+pip install -r requirements.txt
+```
 
+## Contribuer
 
-## Sources utilisées
+Avant chaque _commit_, un _hook_ `pre-commit` vérifie le code avec `ruff`
+(_linter_ et _formatter_). Pour l'activer dans votre copie du dépôt:
 
-Données DVF récupérées et simplifiées de https://www.data.gouv.fr/datasets/demandes-de-valeurs-foncieres 
-* Données carroyées Filosofi: https://www.data.gouv.fr/datasets/revenus-pauvrete-et-niveau-de-vie-donnees-carroyees-2019-et-2021-dispositif-fichier-localise-social-et-fiscal-filosofi
-* Données agrégées Filosofi récupérées depuis l'API Melodi de l'Insee
+```bash
+uvx pre-commit install
+```
