@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.log
+/data/
+*.parquet
+.venv/
+model.skops
+/.quarto/
+*.html
+*_files
+_site/
+
+**/*.quarto_ipynb
+mlruns/
+mlflow.db
