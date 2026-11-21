@@ -1,0 +1,46 @@
+name: Publish website
+
+# Le site est publié à chaque push sur la branche par défaut : l'environnement
+# github-pages n'autorise par défaut que cette branche
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Droits nécessaires pour déployer sur GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+      - name: Render
+        uses: quarto-dev/quarto-actions/render@v2
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
