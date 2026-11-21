@@ -1,11 +1,11 @@
 from pathlib import Path
 import requests
+import seaborn as sns
 import pandas as pd
 import geopandas as gpd
 import os
 import duckdb
 
-os.chdir('/home/coder/work/ensae-reproductibilite-application')
 
 
 print("Lecture des données ------------------------")
