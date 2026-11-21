@@ -1,0 +1,30 @@
+[project]
+name = "application"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "duckdb>=2.0.0",
+    "fastapi>=0.162.0",
+    "geopandas>=1.2.0",
+    "lightgbm>=4.7.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pandas>=3.0.6",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
+    "seaborn>=0.13.2",
+    "skops>=0.16.0",
+    "skore>=0.28.0",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+extend-exclude = ["*.ipynb"]
