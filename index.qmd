@@ -1,0 +1,198 @@
+---
+pagetitle: "Prix de l'immobilier en petite couronne"
+echo: false
+page-layout: custom
+---
+
+```{ojs}
+//| output: false
+import {chargerVentes, nombreVentes, statistiquesParSection, medianeParParcelleDeSection, ventesDeParcelle, prixParPrefixe} from "./js/donnees.js"
+import {creerCarte, appliquerTheme, colorerSections, colorerParcelles, deselectionnerParcelle, placerMarqueur, allerA} from "./js/carte.js"
+import {pointDepuisAdresse, estimerPrix} from "./js/prediction.js"
+import {tableVentes, blocEstimation, histogrammesPrix} from "./js/graphiques.js"
+apiRoot = "https://<APP_NAME>.lab.sspcloud.fr"
+```
+
+```{ojs}
+//| output: false
+// Chargement des ventes en arrière-plan : la promesse est encapsulée pour ne pas bloquer la carte
+chargement = ({promesse: chargerVentes()})
+bd = chargement.promesse
+// Section et parcelle choisies sur la carte
+mutable sectionChoisie = null
+mutable parcelleChoisie = null
+```
+
+```{ojs}
+//| output: false
+// La hauteur de la barre de navigation dépend du thème (clair ou sombre) :
+// on la mesure pour que la carte et le bandeau occupent exactement le reste de l'écran
+{
+  const mesurer = () => document.documentElement.style.setProperty(
+    "--hauteur-navbar", `${document.querySelector("#quarto-header").offsetHeight}px`);
+  mesurer();
+  const observateur = new ResizeObserver(mesurer);
+  observateur.observe(document.querySelector("#quarto-header"));
+  invalidation.then(() => observateur.disconnect());
+}
+```
+
+::: {.indicateur}
+```{ojs}
+{
+  yield md`Chargement des ventes…`;
+  const n = await nombreVentes(await chargement.promesse);
+  yield md`${n.toLocaleString("fr-FR")} ventes chargées. Survolez une section cadastrale puis cliquez dessus.`;
+}
+```
+:::
+
+::: {.recherche}
+```{ojs}
+viewof recherche = Inputs.text({placeholder: "Rechercher une adresse", submit: "Aller", width: 260})
+```
+:::
+
+```{ojs}
+viewof carte = {
+  const div = html`<div class="carte"></div>`;
+  div.value = await creerCarte(div, {
+    surSection: (id) => { mutable sectionChoisie = id; mutable parcelleChoisie = null; },
+    surParcelle: (id) => { mutable parcelleChoisie = id; }
+  });
+  return div;
+}
+```
+
+```{ojs}
+//| output: false
+// Thème clair ou sombre : Quarto met la classe quarto-dark ou quarto-light sur <body>
+// et la change quand on utilise l'interrupteur de la barre de navigation
+{
+  const appliquer = () => appliquerTheme(carte, document.body.classList.contains("quarto-dark"));
+  const observateur = new MutationObserver(appliquer);
+  observateur.observe(document.body, {attributes: true, attributeFilter: ["class"]});
+  appliquer();
+  invalidation.then(() => observateur.disconnect());
+}
+```
+
+```{ojs}
+//| output: false
+// Ventes chargées : coloration de toutes les sections par leur prix médian
+colorerSections(carte, await statistiquesParSection(await chargement.promesse))
+```
+
+```{ojs}
+//| output: false
+// Recherche d'adresse : la carte va à l'adresse et sélectionne sa section
+{
+  if (!recherche) return;
+  const point = await pointDepuisAdresse(recherche);
+  if (point) allerA(carte, point[0], point[1]);
+}
+```
+
+```{ojs}
+//| output: false
+// Section choisie : coloration de ses parcelles (requête DuckDB limitée à cette section)
+{
+  if (!sectionChoisie) return;
+  let perime = false;
+  invalidation.then(() => { perime = true; });
+  const medianes = await medianeParParcelleDeSection(bd, sectionChoisie);
+  if (!perime) colorerParcelles(carte, medianes);
+}
+```
+
+::: {.bandeau}
+```{ojs}
+//| output: false
+// Le bandeau n'est visible que lorsqu'une parcelle est choisie
+{
+  document.querySelector(".bandeau").classList.toggle("ouvert", Boolean(parcelleChoisie));
+  if (!parcelleChoisie) deselectionnerParcelle(carte);
+}
+```
+
+```{ojs}
+//| output: false
+fermerBandeau = () => { mutable parcelleChoisie = null; }
+```
+
+```{ojs}
+{
+  const entete = html`<div class="entete"><strong>Parcelle ${parcelleChoisie ?? ""}</strong></div>`;
+  const bouton = html`<button class="fermer">×</button>`;
+  bouton.onclick = fermerBandeau;
+  entete.append(bouton);
+  return entete;
+}
+```
+
+```{ojs}
+//| output: false
+ventesParcelle = parcelleChoisie ? await ventesDeParcelle(bd, parcelleChoisie) : []
+```
+
+<div class="titre-bloc">Ventes de la parcelle</div>
+
+```{ojs}
+viewof venteChoisie = tableVentes(Inputs, ventesParcelle)
+```
+
+```{ojs}
+//| output: false
+// Valeurs initiales des réglages : celles de la vente choisie (bornées à l'étendue des curseurs)
+vente = venteChoisie
+```
+
+<div class="titre-bloc">Caractéristiques du logement</div>
+
+```{ojs}
+viewof type_local = Inputs.radio(["Appartement", "Maison"], {label: "Type", value: vente?.type_local ?? "Appartement"})
+viewof surface = Inputs.range([9, 300], {step: 1, label: "Surface (m²)", value: Math.min(300, Math.max(9, Math.round(vente?.surface ?? 45)))})
+viewof nombre_pieces = Inputs.range([1, 10], {step: 1, label: "Pièces", value: Math.min(10, Math.max(1, vente?.pieces ?? 2))})
+```
+
+```{ojs}
+//| output: false
+// Appel à l'API : attente de 400 ms (anti-rebond), annulée si une valeur change entre-temps
+prediction = {
+  if (!vente) return;
+  const controle = new AbortController();
+  invalidation.then(() => controle.abort());
+  yield {enCours: true};
+  await Promises.delay(400);
+  if (controle.signal.aborted) return;
+  yield await estimerPrix({
+    apiRoot, adresse: vente.adresse, type_local, surface, nombre_pieces, signal: controle.signal
+  });
+}
+```
+
+<div class="titre-bloc">Estimation du modèle</div>
+
+```{ojs}
+vente ? blocEstimation(Plot, vente, prediction) : html``
+```
+
+```{ojs}
+//| output: false
+// Prix de la commune et de la section de la parcelle : une requête par parcelle choisie
+// (le préfixe de 5 caractères désigne la commune, celui de 10 la section)
+distributions = parcelleChoisie ? ({
+  commune: await prixParPrefixe(bd, parcelleChoisie.slice(0, 5)),
+  section: await prixParPrefixe(bd, parcelleChoisie.slice(0, 10))
+}) : null
+```
+
+<div class="titre-bloc">Comparaison avec le quartier</div>
+
+```{ojs}
+vente && distributions ? histogrammesPrix(Plot, {
+  commune: {nom: vente.nom_commune, prix: distributions.commune},
+  section: {code: parcelleChoisie.slice(8, 10), prix: distributions.section}
+}, vente, prediction) : html``
+```
+:::

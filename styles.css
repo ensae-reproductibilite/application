@@ -1,0 +1,122 @@
+/* Page d'accueil : la carte occupe tout l'écran sous la barre de navigation,
+   dont la hauteur (variable selon le thème clair ou sombre) est mesurée dans index.qmd */
+html:has(.carte) { overflow: hidden; }
+.cell:has(.carte) { padding-top: 0 !important; } /* marge ajoutée par Quarto autour des cellules */
+.carte {
+  position: relative;
+  height: calc(100vh - var(--hauteur-navbar, 56px));
+  width: 100%;
+}
+
+/* Légende superposée en bas à gauche de la carte */
+.legende {
+  position: absolute;
+  bottom: 24px;
+  left: 10px;
+  z-index: 1;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--bs-body-bg) 90%, transparent);
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+.legende .degrade { height: 10px; width: 180px; margin: 4px 0 2px; }
+.legende .bornes { display: flex; justify-content: space-between; }
+
+/* Éléments posés sur la carte : indicateur de chargement et recherche d'adresse */
+.indicateur, .recherche {
+  position: fixed;
+  z-index: 5;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, transparent);
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.indicateur { bottom: 24px; left: 50%; transform: translateX(-50%); }
+.indicateur p, .recherche form { margin: 0; }
+.recherche { top: calc(var(--hauteur-navbar, 56px) + 10px); left: 10px; }
+
+/* Bandeau des ventes : à droite, masqué tant qu'aucune parcelle n'est choisie */
+.bandeau {
+  display: none;
+  position: fixed;
+  top: var(--hauteur-navbar, 56px);
+  right: 0;
+  bottom: 0;
+  width: 520px;
+  max-width: 100vw;
+  z-index: 10;
+  padding: 20px 24px;
+  overflow-y: auto;
+  background: var(--bs-body-bg);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.25);
+  font-size: 0.9em;
+}
+.bandeau.ouvert { display: block; }
+.bandeau .entete { display: flex; justify-content: space-between; align-items: center; }
+.bandeau .fermer { border: 0; background: none; font-size: 1.6em; line-height: 1; cursor: pointer; }
+.bandeau .erreur { color: #bd0026; }
+
+/* Infobulles de MapLibre */
+/* Couleurs issues du thème Bootstrap (clair ou sombre), y compris la pointe.
+   Préfixe .carte : la feuille de MapLibre, chargée après celle-ci, imposerait sinon son fond blanc */
+.carte .maplibregl-popup-content {
+  font-size: 0.85em; padding: 6px 10px;
+  background: var(--bs-body-bg); color: var(--bs-body-color);
+  pointer-events: none; /* l'infobulle ne capte pas le survol de la carte */
+}
+.carte .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.carte .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.carte .maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--bs-body-bg); }
+.carte .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.carte .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.carte .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--bs-body-bg); }
+.carte .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bs-body-bg); }
+.carte .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bs-body-bg); }
+
+/* Tableau des ventes : compact, sans case "tout sélectionner" */
+.bandeau table { font-size: 0.8em; }
+.bandeau thead input[type=checkbox] { visibility: hidden; }
+.bandeau table th, .bandeau table td { padding: 2px 4px; }
+
+/* Titres des histogrammes du bandeau */
+.bandeau h2 { font-size: 0.95em; font-weight: 600; margin: 0; }
+/* Légende commune des histogrammes */
+.legende-histos {
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+/* Graphiques Observable Plot : fond transparent pour suivre le thème clair ou sombre */
+.bandeau { --plot-background: transparent; }
+.bandeau svg, .bandeau figure { background: transparent !important; }
+
+/* Bandeau aéré : espace entre les blocs, titres sobres, texte plus interligné */
+.bandeau .cell { margin-bottom: 1.25rem; }
+.bandeau .titre-bloc {
+  margin: 1.75rem 0 0.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.bandeau .cell form { margin-bottom: 0.6rem; }
+.bandeau .cell p { line-height: 1.8; margin-bottom: 0.5rem; }
+
+/* Contrôles de MapLibre (zoom, attribution) en mode sombre */
+body.quarto-dark .maplibregl-ctrl-group,
+body.quarto-dark .maplibregl-ctrl-attrib { background: var(--bs-body-bg); color: var(--bs-body-color); }
+body.quarto-dark .maplibregl-ctrl-attrib a { color: var(--bs-body-color); }
+body.quarto-dark .maplibregl-ctrl-group button + button { border-top-color: var(--bs-border-color); }
+body.quarto-dark .maplibregl-ctrl-icon { filter: invert(1); }
+
+/* Barre de navigation : fond noir (défini dans _quarto.yml) et fin trait de couleur
+   reprenant l'échelle des prix de la carte */
+#quarto-header .navbar {
+  border-bottom: 3px solid #f03b20;
+  box-shadow: none;
+}
+#quarto-header .navbar .nav-link.active { color: #fd8d3c; }
+#quarto-header .navbar .nav-link:hover { color: #ffffff; }
