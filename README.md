@@ -1,13 +1,18 @@
-# Exercices d'application du cours de "Mise en production de projets de data science" (ENSAE, voie data science)
+# Probabilité de survie sur le Titanic
 
-Point de départ du projet du cours de mise en production de l'ENSAE.
+Pour pouvoir utiliser ce projet, il 
+est recommandé de créer un fichier `.env`
+ayant la structure suivante:
 
-Exercice fil rouge guidé sur https://ensae-reproductibilite.github.io/website/chapters/application.html
+```yaml
+JETON_API="####" #renseigner la valeur pertinente
+```
 
+## Contribuer
 
+Avant chaque _commit_, un _hook_ `pre-commit` vérifie le code avec `ruff`
+(_linter_ et _formatter_). Pour l'activer dans votre copie du dépôt:
 
-## Sources utilisées
-
-Données DVF récupérées et simplifiées de https://www.data.gouv.fr/datasets/demandes-de-valeurs-foncieres 
-* Données carroyées Filosofi: https://www.data.gouv.fr/datasets/revenus-pauvrete-et-niveau-de-vie-donnees-carroyees-2019-et-2021-dispositif-fichier-localise-social-et-fiscal-filosofi
-* Données agrégées Filosofi récupérées depuis l'API Melodi de l'Insee
+```bash
+uvx pre-commit install
+```
