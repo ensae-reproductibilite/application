@@ -1,0 +1,31 @@
+project:
+  type: website
+  render:
+    - index.qmd
+    - a-propos.qmd
+  resources:
+    - js/
+
+website:
+  title: "Prix de l'immobilier en petite couronne"
+  navbar:
+    # Barre noire dans les deux thèmes, pour ne pas jurer avec le fond de carte
+    background: "#111111"
+    foreground: "#e8e8e8"
+    left:
+      - href: index.qmd
+        text: Accueil
+      - href: a-propos.qmd
+        text: À propos
+
+format:
+  html:
+    lang: fr
+    # Thème clair ou sombre selon la préférence du navigateur (prefers-color-scheme),
+    # avec un interrupteur dans la barre de navigation
+    theme:
+      light: cosmo
+      dark: darkly
+    respect-user-color-scheme: true
+    css: styles.css
+    toc: false
